@@ -1,185 +1,260 @@
-# PYGAME:FIRST
-# My first prototype using py
+# PYGAME-FIRST
+#
+# (TODO) Make a named/referenciable object system
+# (TODO) Finish this all
 
-# Import some useful modules.
-import pygame # Pygame Library
-# import time # Built-in Modules
-import api.debug as debug, api.scene as scene_api # Game Modules
-from math import floor # Math Functions
+import pygame
+from math import floor
 from pathlib import Path
+import os
 
-##################
-# USEFUL CLASSES #
-##################
-class Point:
-	def __init__(self, x, y):
-		self.x = x
-		self.y = y
-	def __str__(self):
-		return 'Point{}'.format((self.x, self.y))
-	def tup(self):
-		return self.x, self.y
+scriptPath = os.path.dirname(os.path.abspath(__file__))
 
-print(Point(10, 20).tup())
+class game:
 
-# MAIN GAME
-def main():
+	def __init__(self, camera, Size=(300,300), framerate=60):
+		self.camera = camera
+		self.Size = Size
+		self.framerate = framerate
+		self.clock = pygame.time.Clock()
 
-	###################
-	# SETUP & CLASSES #
-	###################
+	def startRuntime(self):
+		'''This should be defined by the programmer.'''
+		pass
 
-	# Init Pygame
-	pygame.init()
-	debug.log('Pygame API Initiated')
+class gameObject:
+	def __init__(self, sprite, Pos=(0,0), isScrollAffected=True):
+		self.sprite = sprite
+		self.Pos = Pos
+		self.isScrollAffected = isScrollAffected
+	def __repr__(self):
+		return 'gameObject({}, {}, {})'.format(self.sprite, self.Pos, self.isScrollAffected)
 
-	class res:
-		# Put all the resources to load here, like images, SFX and music.
-		logo = pygame.image.load("img/tile2.png")
-		char = pygame.image.load("img/char.png")
-		tile1 = pygame.image.load("img/tile1.png")
+class camera:
 
-		# Debug Message
-		debug.log('Loaded Game Resources')
+	# Centered Position
+	CenteredPos = [0,0]
 
-	class game:
-		clock = pygame.time.Clock() # The game clock (to limit fps)
-		timer = -1 # The game timer. Starts at -1 because it is increased on the first frame of the game by one to start on the frame 0.
-		exitCode = (0, 'Unknown') # Init Finish Code
+	# True Position
+	TruePos = (0,0)
 
-	class screen:
-		# Screen-related variables
-		SizeX = 512 # Screen Size X
-		SizeY = 288 # Screen Size Y
-		PosX = 0 # Screen Position X; is affected by camera.PosX
-		PosY = 0 # Screen Position Y; is affected by camera.PosY
+def iterateCamera(buffer, game):
 
-		# Screen Settings
-		pygame.display.set_icon(res.logo)
-		pygame.display.set_caption('Pygame:First')
-		core = pygame.display.set_mode((SizeX, SizeY))
-
-		# Debug Message
-		debug.log('Screen Set Up')
-
-	class scenes:
-		# Make the Main Scene
-		mainScene = scene_api.scene((600, 400), screen.core)
-
-		# Debug Message
-		debug.log('Scenes Set Up')
-
-	class camera:
-		# Camera Variables and Functions
-		PosX = 0 # Camera Position X
-		PosY = 0 # Camera Position Y
-
-		# Iterate the screen position based on the camera position.
-		@classmethod
-		def iterate(cls):
-			screen.PosX = min(max(0, cls.PosX - (screen.SizeX / 2)), scenes.mainScene.SizeX - screen.SizeX)
-			screen.PosY = min(max(0, cls.PosY - (screen.SizeY / 2)), scenes.mainScene.SizeY - screen.SizeY)
-			cls.PosX = screen.PosX + (screen.SizeX / 2)
-			cls.PosY = screen.PosY + (screen.SizeY / 2)
-
-		# Debug Message
-		debug.log('Camera Set Up')
-
-	# Finish Setup
-	debug.log('Game Setup Finished')
-	
-	#################
-	# SCENE MONTAGE #
-	#################
-
-	# Layer 00:
-	scenes.mainScene.objmap[0] = [] # There isn't any current image file for the background.
-
-	# Layer 01:
-	scenes.mainScene.objmap[1]	= [
-		scene_api.obj(res.tile1, (32,00)),
-		scene_api.obj(res.tile1, (32,32)),
-		scene_api.obj(res.tile1, (64,32)),
-		scene_api.obj(res.tile1, (64,64)),
-		scene_api.obj(res.tile1, (96,64)),
-		scene_api.obj(res.tile1, (96,96)),
-		scene_api.obj(res.char, (0,0)),
-		scene_api.obj(res.char, (scenes.mainScene.SizeX - 32, 0)),
-		scene_api.obj(res.char, (0, scenes.mainScene.SizeY - 32)),
-		scene_api.obj(res.char, (scenes.mainScene.SizeX - 32, scenes.mainScene.SizeY - 32))
+	game.camera.CenteredPos = [
+		min(max(0, game.camera.CenteredPos[0]), buffer.Size[0]),
+		min(max(0, game.camera.CenteredPos[1]), buffer.Size[1])
 	]
 
-	# Layer 02:
-		#obj_player = scene.obj(res.char, (0,0))
-		#obj_player.XSpeed = 10
-		#obj_player.YSpeed = 5
-	scenes.mainScene.objmap[2] = [
-		#obj_player
-	]
+	# Update the "True Position"
+	# It is a tuple to prevent changing via code. I'm not sure if it would be stable to update the camera position using this.
+	TruePosX = (
+		min(
+			max(
+				0, # The min point on the left/top without overlapping the virtual screeen.
+				game.camera.CenteredPos[0] - # The camera centered position, subtracted by ...
+				(game.Size[0] / 2) # ... half of the screen size
+			),
+			buffer.Size[0] - game.Size[0] # The max point on the right/bottom without overlapping the virtual screen
+		)
+	)
+	TruePosY = (
+		min(
+			max(
+				0, # The min point on the left/top without overlapping the virtual screeen.
+				game.camera.CenteredPos[1] - # The camera centered position, subtracted by ...
+				(game.Size[1] / 2) # ... half of the screen size
+			),
+			buffer.Size[1] - game.Size[1] # The max point on the right/bottom without overlapping the virtual screen
+		)
+	)
+	game.camera.TruePos = (TruePosX, TruePosY)
 
-	#############
-	# MAIN LOOP #
-	#############
+def render_object(_object, camera, display):
 
-	running = True # Create the running variable.
+	# Calculate a new position to render on, because of camera scrolling
+	RenderPos = (None, None)
+	if _object.isScrollAffected:
+		RenderPos = (
+			int(floor(_object.Pos[0] - camera.TruePos[0])),
+			int(floor(_object.Pos[1] - camera.TruePos[1]))
+		)
+	else:
+		RenderPos = (
+			_object.Pos[0],
+			_object.Pos[1]
+		)
 
-	# The actual main loop.
-	while running:
-		delta = game.clock.tick(60) # Limit the framerate to 60fps and create a delta variable for the amount of time passed between the frames.
-		game.timer += 1 # Add 1 to the timer at every frame. The first frame
+	# Blit the object's sprite and on the display using the new position
+	display.blit(_object.sprite, RenderPos)
 
-		# Create the Input Class (for detecting player Input)
-		class Input:
-			_keyMap = pygame.key.get_pressed()
-			keyUp = _keyMap[pygame.K_UP]
-			keyDown = _keyMap[pygame.K_DOWN]
-			keyLeft = _keyMap[pygame.K_LEFT]
-			keyRight = _keyMap[pygame.K_RIGHT]
+def render_screen(objectMap, camera, display, filler=(30,30,30), pygame=pygame):
 
-		# Process the events sent by the interface.
-		for event in pygame.event.get():
-			if (event.type == pygame.QUIT): # Quit by pressing the close button on the window.
-				running = False # Disable Running Mode
-				exitCode = (1, 'Close Button Pressed')
+	# Fill the screen background, if needed.
+	if (filler != None):
+		display.fill(filler)
 
-		# Physics Processing (to add later on a separate file)
-		#def _physics_processing():
-		#	if (player.x > ScreenSizeX - 32) or (player.x < 0):
-		#		player.xSpeed *= -1
-		#	if (player.y > ScreenSizeY - 32) or (player.y < 0):
-		#		player.ySpeed *= -1
-		#	player.x += player.xSpeed
-		#	player.y += player.ySpeed
+	# Renders all layers in the object map
+	for layer in objectMap:
+		for a, entity in enumerate(layer):
+			render_object(entity, camera, display)
 
-		# General Every-Frame Processing
-		def _main_processing():
-			# Move the Camera Around
-			if Input.keyUp:
-				camera.PosY -= 5
-			elif Input.keyDown:
-				camera.PosY+= 5
-			if Input.keyLeft:
-				camera.PosX -= 5
-			elif Input.keyRight:
-				camera.PosX += 5
-			camera.iterate()
+	pygame.display.flip()
 
-		_main_processing()
+class buffer:
 
-		####################
-		# SCREEN RENDERING #
-		####################
+	def __init__(self, game, Size=None, **kwargs):
 
-		# Fill the screen with a dark gray background (not layer-related)
-		screen.core.fill((30,30,30))
+		# Receive the parent game link for interaction with camera and display.
+		self.game = game
 
-		# Render the layers
-		scenes.mainScene.render_screen(screen, screen.core)
+		# Set up Object Map
+		if ('objMap' in kwargs):
+			self.objMap = kwargs['objMap']
+		else:
+			self.objMap = []
 
-		# Update the screen data
-		pygame.display.flip()
+		if (Size == None):
+			# By default, set the buffer size to the game screen size.
+			self.Size = game.Size
+		else:
+			# But, if specified, set it to that argument.
+			self.Size = Size
 
-	return exitCode
+	def bufMain(self):
+		'''This should be defined by the programmer.'''
+		pass
 
-if __name__ == '__main__': # Only run if the file is being executed as a program and not a module.
-	debug.log('Exit Code: {}'.format(main())) # Log the exit code after running the program.
+###########
+# EXAMPLE #
+###########
+
+class myBuffer(buffer):
+
+	def bufMain(self):
+
+		# SETUP
+		# (TODO) Fill one layer as a simple test
+		# (TODO) Make this more default-y? Not sure if it still needs
+		self.objMap = [
+			# 00> Background
+			[],
+			# 01> Title
+			[
+				gameObject(self.game.gfx.char, (self.Size[0] - 32, 0)),
+				gameObject(self.game.gfx.char, (self.Size[0] - 32, self.Size[1] - 32))
+			],
+			# 02> Main (Player, Enemies, Items etc.)
+			[
+				gameObject(self.game.gfx.char, self.game.camera.CenteredPos)
+			]
+		]
+
+		# Populate the left side of the screen with some tiles
+		for BaseY in range(self.Size[1] // 32):
+			for BaseX in range(3):
+				self.objMap[1].append(gameObject(self.game.gfx.char, (BaseY * 32, BaseX * 32)))
+
+		# Hello, World!
+		print('Hello, World!')
+
+		# MAIN GAME
+		running = True
+		timer = 0
+
+		while running:
+
+			# Limit FPS to the specified framerate
+			delta = self.game.clock.tick(self.game.framerate)
+
+			class Input:
+				'''Stores some input keys from pygame.key.get_pressed()'''
+				_keyMap = pygame.key.get_pressed()
+				keyUp = _keyMap[pygame.K_UP]
+				keyDown = _keyMap[pygame.K_DOWN]
+				keyLeft = _keyMap[pygame.K_LEFT]
+				keyRight = _keyMap[pygame.K_RIGHT]
+
+			def _process():
+
+				if Input.keyUp:
+					self.game.camera.CenteredPos[1] -= 5
+				elif Input.keyDown:
+					self.game.camera.CenteredPos[1] += 5
+
+				if Input.keyLeft:
+					self.game.camera.CenteredPos[0] -= 5
+				elif Input.keyRight:
+					self.game.camera.CenteredPos[0] += 5
+
+				# Quick update on the object that follows the camera
+				self.objMap[2][0].Pos = (self.game.camera.CenteredPos[0]-16, self.game.camera.CenteredPos[1]-16)
+
+			def _finish():
+				iterateCamera(self, self.game)
+				# (TODO) Make this 'render screen' thing a part of the defaults, not having to be coded manually. Might have to update the 'while running' thing too.
+				# (DONE) OH YEA, might move this out of this using the functional paradigm
+				render_screen(self.objMap, self.game.camera, self.game.display)
+
+			def _events():
+				for event in pygame.event.get():
+					if (event.type == pygame.QUIT):
+						return False, (-1, 'Exit via pygame.QUIT')
+				return True, (-1, None)
+
+			_process()
+			_finish()
+			running, exitCode = _events()
+
+			timer += 1
+
+		return exitCode
+
+class myGame(game):
+
+	# (DONE) Load graphics (inside a class)
+	class gfx:
+
+		def loadImage(filename):
+			'''Loads images relative to $project/img/'''
+			#rootPath = Path(scriptPath)
+			#imagePath = rootPath / 'img'
+			return pygame.image.load('img/' + filename)
+			# (TODO) Make this with paths relative to the scriptPath - I tried it, but there was some strange error where it couldn't load the file. And I checked, the paths were correct.
+
+		tile1 = loadImage('tile1.png')
+		logo = loadImage('tile2.png')
+		char = loadImage('char.png')
+
+	def startRuntime(self):
+
+		# Init Pygame
+		pygame.init()
+		pygame.display.set_icon(self.gfx.logo) # (DONE)
+		pygame.display.set_caption('pygame-first | Hello World!')
+		self.display = pygame.display.set_mode(self.Size)
+
+		# This 'buffers' tuple is used to make a good API for transferring between buffers, using simply an exit code that points to a tuple.
+		buffers = (
+			myBuffer(game=self, Size=(600,400)), # (<-) Ah yes, the tuple comma.
+		)
+
+		bufferCode = (0, None)
+		while True:
+
+			# Update the bufferCode based on the returned code ran on the last frame.
+			bufferCode = buffers[bufferCode[0]].bufMain()
+			assert type(bufferCode[0]).__name__ == 'int', 'The bufferCode is not an int'
+			print(bufferCode) # (+DEBUG)
+			if (bufferCode[0] < 0): break
+
+		return 0
+
+try:
+	theGame = myGame(
+		camera=camera(),
+		Size=(512,288),
+		framerate=60
+	)
+	theGame.startRuntime()
+except KeyboardInterrupt:
+	print('\n<KeyboardInterrupt>')
