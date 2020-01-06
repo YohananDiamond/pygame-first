@@ -5,15 +5,19 @@
 # -> Implement (kind of) pure functions, in most cases
 # -> Use a low amount of classes
 
+# Fold Markers
+# I'm using {{{foldmarkers}}} on this file. They work mostly with vim.
+
 # }}}
 # Importing {{{
 
 import pygame # type: ignore
+from pygame.locals import * # type: ignore
 from math import floor
 from pathlib import Path
 from typing import (
     Tuple, Callable, NamedTuple,
-    Union,
+    Union, List
 )
 from enum import Enum
 
@@ -42,10 +46,9 @@ class Game: # {{{
         return f(self, self.camera, self.screen_size)
 # }}}
 class Object: # {{{
-    def __init__(self, initial_position: Float2D, sprite: pygame.Surface, parallax_coefficient: Float2D = (1.0, 1.0)):
+    def __init__(self, initial_position: Float2D, sprite: pygame.Surface):
         self.pos = Vector2D.from_Float2D(initial_position)
         self.sprite = sprite
-        self.parallax_coefficient = parallax_coefficient
 # }}}
 class Camera: # {{{
     def __init__(self, g: Game, initial_position: Float2D = (0.0, 0.0)):
@@ -53,12 +56,10 @@ class Camera: # {{{
         self.g = g
 
     @property # type: ignore
-    def center(self) -> Vector2D:
-        # min/max is not needed here because it is already handled in the true pos updating
-        r = Vector2D()
-        r.x = self.true_pos.x + g.screen_size[0] / 2
-        r.y = self.true_pos.y + g.screen_size[1] / 2
-        return r
+    def center(self) -> Float2D:
+        x = float(self.true_pos.x + g.screen_size[0] / 2)
+        y = float(self.true_pos.y + g.screen_size[1] / 2)
+        return (x, y)
 
     @center.setter # type: ignore
     def center(self, location: Float2D):
@@ -82,14 +83,65 @@ class Scene: # {{{
     def __init__(self, size: Int2D):
         self.size = size
 # }}}
+class InputKey: # {{{
+    def __init__(self, key_code: int):
+        """Holds data for a single key, represented in key_code.
+
+        `held` -> True whenever the key is pressed (held);
+
+        `first` => True only on the first frame the key is pressed;
+        then, it can only be True again if the key is released, then
+        pressed again; good for jump triggers.
+        """
+        self.held = False
+        self.first = False
+# }}}
+class InputHandler: # {{{
+    def __init__(self):
+        self.key_up = InputKey(K_UP)
+        self.key_left = InputKey(K_RIGHT)
+        self.key_right = InputKey(K_LEFT)
+        self.key_down = InputKey(K_DOWN)
+
+    def process(self):
+        # Get raw input data
+        keymap = pygame.key.get_pressed()
+
+        # Clear the first vars
+        self.key_up.first = False
+        self.key_down.first = False
+        self.key_left.first = False
+        self.key_right.first = False
+
+        # Preencher a lista de teclas pressionadas
+        if keymap[K_UP] and (not self.key_up.held):
+            self.key_up.first = True
+        if keymap[K_DOWN] and (not self.key_down.held):
+            self.key_down.first = True
+        if keymap[K_LEFT] and (not self.key_left.held):
+            self.key_left.first = True
+        if keymap[K_RIGHT] and (not self.key_right.held):
+            self.key_right.first = True
+
+        # Update the down vars
+        self.key_up.held = keymap[K_UP]
+        self.key_down.held = keymap[K_DOWN]
+        self.key_left.held = keymap[K_LEFT]
+        self.key_right.held = keymap[K_RIGHT]
+# }}}
+class Layer: # {{{
+    def __init__(self, objects: List, parallax_coefficient: Float2D):
+        self.objects = objects
+        self.parallax_coefficient = parallax_coefficient
+# }}}
 
 # }}}
 # Functions {{{
 
-def render(obj: Object, display: pygame.Surface, camera: Camera): # {{{
+def render(obj: Object, display: pygame.Surface, camera: Camera, parallax_coefficient: Float2D): # {{{
     render_pos = (
-        int((obj.pos.x - camera.true_pos.x) * obj.parallax_coefficient[0]),
-        int((obj.pos.y - camera.true_pos.y) * obj.parallax_coefficient[1]),
+        int(obj.pos.x - camera.true_pos.x * parallax_coefficient[0]),
+        int(obj.pos.y - camera.true_pos.y * parallax_coefficient[1]),
     )
 
     # TODO: check if the object is completely out of screen and, if true, don't even blit it.
@@ -100,36 +152,76 @@ def render(obj: Object, display: pygame.Surface, camera: Camera): # {{{
 # Applying Concepts {{{
 
 def main_game(g: Game, camera: Camera, screen_size: Int2D) -> ExitCode: # {{{
-    FRAMERATE = 30
+    # Initialize Components {{{
+    FRAMERATE = 60
 
+    # Prepare pygame & display
     pygame.init()
     # pygame.display.set_icon(???)
     pygame.display.set_caption('&str')
     display = pygame.display.set_mode(screen_size)
 
+    # Assist objects
     clock = pygame.time.Clock()
+    pinput = InputHandler()
 
-    layers = []
-    layers.append([Object((0, 0), pygame.image.load("img/char.png"), (1.0, 1.0))])
+    # Layers
+    layers: List[Layer] = []
+    l1 = []
+    for (y, line) in enumerate([list(range(10)) for y in range(10)]):
+        for x in line:
+            l1.append(Object((x*32.0, y*32.0), pygame.image.load("img/char.png")))
+    layers.append(Layer(l1, (0.5, 0.5)))
+    l2 = []
+    for (y, line) in enumerate([list(range(50)) for y in range(50)]):
+        for x in line:
+            if (y % 2 == 0) and (x % 2 == 0):
+                l2.append(Object((x*32.0, y*32.0), pygame.image.load("img/tile1.png")))
+    layers.append(Layer(l2, (1.0, 1.0)))
 
+    # Running Variable
     running = True
+    # }}}
+    # Main Loop {{{
     while running:
-
+        # Processing {{{
+        pinput.process()
         clock.tick(FRAMERATE)
+        # }}}
+        # Main {{{
+        SPEED = 20
+        if pinput.key_up.held:
+            camera.true_pos.y -= SPEED
+        elif pinput.key_down.held:
+            camera.true_pos.y += SPEED
+
+        if pinput.key_left.held:
+            camera.true_pos.x -= SPEED
+        if pinput.key_right.held:
+            camera.true_pos.x += SPEED
+        # }}}
+        # Screen Updating {{{
+        # Weird hack to limit camera bounds.
+        camera.center = camera.center
 
         # Screen blitting
         display.fill((30, 30, 30))
         for layer in layers:
-            for obj in layer:
-                render(obj, display, camera)
+            for obj in layer.objects:
+                render(obj, display, camera, layer.parallax_coefficient)
 
         pygame.display.flip()
-
+        # }}}
+        # Event Managing {{{
+        for event in pygame.event.get():
+            if event.type == QUIT: # type: ignore
+                running = False
+        # }}}
+    # }}}
     return 0
 # }}}
-
 if __name__ == "__main__": # {{{
-    g = Game((640, 360), Scene((700, 700)))
+    g = Game((16*80, 9*80), Scene((1366, 768)))
     g.link_camera(Camera(g, (0.0, 0.0)))
     g.runtime_function(main_game)
 # }}}

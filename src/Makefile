@@ -1,4 +1,4 @@
-run: config typecheck
+run: typecheck
 	strip-hints ./main.py | python3
 
 typecheck:
