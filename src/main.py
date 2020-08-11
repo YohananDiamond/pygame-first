@@ -15,76 +15,63 @@ import pygame # type: ignore
 from pygame.locals import * # type: ignore
 from math import floor
 from pathlib import Path
-from typing import (
-    Tuple, Callable, NamedTuple,
-    Union, List
-)
 from enum import Enum
-
-# }}}
-# Typing Aliases {{{
-
-Int2D = Tuple[int, int]
-Float2D = Tuple[float, float]
-ColorRGB = Tuple[int, int, int]
-ExitCode = int # For now it's an int but I plan to change this later on.
-Surface = pygame.Surface
 
 # }}}
 # Classes {{{
 
 class Game: # {{{
-    def __init__(self, screen_size: Int2D, current_scene: Scene):
+    def __init__(self, screen_size, current_scene):
         self.screen_size = screen_size
         self.current_scene = current_scene
 
-    def link_camera(self, camera: Camera):
+    def link_camera(self, camera):
         self.camera = camera
 
-    def runtime_function(self, f: Callable[[Game, Camera, Int2D], ExitCode]) -> ExitCode:
+    def runtime_function(self, f):
         """Runs the function with the game parameters and returns the function's exit code."""
         return f(self, self.camera, self.screen_size)
 # }}}
 class Object: # {{{
-    def __init__(self, initial_position: Float2D, sprite: pygame.Surface):
+    def __init__(self, initial_position, sprite):
         self.pos = Vector2D.from_Float2D(initial_position)
         self.sprite = sprite
 # }}}
 class Camera: # {{{
-    def __init__(self, g: Game, initial_position: Float2D = (0.0, 0.0)):
+    def __init__(self, g, initial_position=(0.0, 0.0)):
         self.true_pos = Vector2D.from_Float2D(initial_position)
         self.g = g
 
     @property # type: ignore
-    def center(self) -> Float2D:
+    def center(self):
         x = float(self.true_pos.x + g.screen_size[0] / 2)
         y = float(self.true_pos.y + g.screen_size[1] / 2)
         return (x, y)
 
     @center.setter # type: ignore
-    def center(self, location: Float2D):
+    def center(self, location):
         self.true_pos.x = min(max(0, location[0] - g.screen_size[0] / 2), g.current_scene.size[0])
         self.true_pos.y = min(max(0, location[1] - g.screen_size[1] / 2), g.current_scene.size[1])
 # }}}
 class Vector2D: # {{{
-    def __init__(self, x: float = 0.0, y: float = 0.0):
-        self.x = x
-        self.y = y
+    def __init__(self, x=0.0, y=0.0):
+        self.x = float(x)
+        self.y = float(y)
 
     @staticmethod
-    def from_Int2D(base: Int2D) -> Vector2D:
+    def from_Int2D(base):
         return Vector2D(float(base[0]), float(base[1]))
 
     @staticmethod
-    def from_Float2D(base: Float2D) -> Vector2D:
+    def from_Float2D(base):
         return Vector2D(*base)
 # }}}
 class Scene: # {{{
-    def __init__(self, size: Int2D):
+    def __init__(self, size):
         self.size = size
 # }}}
 class InputKey: # {{{
-    def __init__(self, key_code: int):
+    def __init__(self, key_code):
         """Holds data for a single key, represented in key_code.
 
         `held` -> True whenever the key is pressed (held);
@@ -130,7 +117,7 @@ class InputHandler: # {{{
         self.key_right.held = keymap[K_RIGHT]
 # }}}
 class Layer: # {{{
-    def __init__(self, objects: List, parallax_coefficient: Float2D):
+    def __init__(self, objects, parallax_coefficient):
         self.objects = objects
         self.parallax_coefficient = parallax_coefficient
 # }}}
@@ -138,7 +125,7 @@ class Layer: # {{{
 # }}}
 # Functions {{{
 
-def render(obj: Object, display: pygame.Surface, camera: Camera, parallax_coefficient: Float2D): # {{{
+def render(obj, display, camera, parallax_coefficient): # {{{
     render_pos = (
         int(obj.pos.x - camera.true_pos.x * parallax_coefficient[0]),
         int(obj.pos.y - camera.true_pos.y * parallax_coefficient[1]),
@@ -151,7 +138,7 @@ def render(obj: Object, display: pygame.Surface, camera: Camera, parallax_coeffi
 # }}}
 # Applying Concepts {{{
 
-def main_game(g: Game, camera: Camera, screen_size: Int2D) -> ExitCode: # {{{
+def main_game(g, camera, screen_size): # {{{
     # Initialize Components {{{
     FRAMERATE = 60
 
