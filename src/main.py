@@ -144,8 +144,7 @@ def main_game(g, camera, screen_size): # {{{
 
     # Prepare pygame & display
     pygame.init()
-    # pygame.display.set_icon(???)
-    pygame.display.set_caption('&str')
+    pygame.display.set_caption('DEMO')
     display = pygame.display.set_mode(screen_size)
 
     # Assist objects
